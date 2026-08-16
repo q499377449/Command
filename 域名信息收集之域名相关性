@@ -1,0 +1,144 @@
+域名相关性是信息收集中“由点及面”的核心手段。简单说就是：我不光搞你一个域名，我通过邮箱、备案、注册人，把你公司所有域名全扒出来。
+
+你给的步骤非常专业，我把它整理成“一条龙实战流程”，并补齐具体命令和查询网站。
+
+---
+
+一、核心逻辑链（先记这张图）
+
+```
+目标域名 → 查WHOIS拿邮箱/注册人 → 反查邮箱/注册人拿其他域名
+目标域名 → 查备案号 → 反查备案号拿所有关联域名
+所有拿到的域名 → 循环往复再查邮箱 → 再去查子域名
+```
+
+---
+
+二、实战操作（按顺序做）
+
+第1步：查域名注册邮箱（WHOIS）
+
+```bash
+whois julislings.com | grep -i "Registrant Email\|Registrar Abuse Contact" | head -5
+```
+
+⚠️ 如果显示 privacy 保护或阿里云链接，就跳转到第2步（走备案路线）。
+
+---
+
+第2步：通过域名查备案号（国内域名专用）
+
+网站 操作
+https://beian.miit.gov.cn 工信部官网查（慢，但最准）
+https://icp.chinaz.com 站长工具，输入域名直接看备案号
+https://xiguaji.com 备查，速度快
+
+找到备案号如 京ICP备12345678号。
+
+---
+
+第3步：通过备案号反查所有域名
+
+网站 操作
+https://icp.chinaz.com 输入备案号，显示该主体下所有域名
+https://beianx.cn 专门做备案反查
+
+🔥 这一步往往能炸出一堆同公司域名，比如 example.com、example.cn、example.net 全在一个备案号下。
+
+---
+
+第4步：反查注册邮箱（WHOIS反查）
+
+如果WHOIS暴露了真实邮箱（如 admin@company.com）：
+
+网站 操作
+https://whois.domaintools.com 输入邮箱，查所有用该邮箱注册的域名
+https://viewdns.info/reversewhois 免费反查
+https://securitytrails.com 输入邮箱，查关联域名
+
+命令版（用whois循环，但速度慢，推荐网页）：
+
+```bash
+# 思路：把邮箱丢进viewdns的API（需要自己封装）
+```
+
+---
+
+第5步：反查注册人（姓名/组织名）
+
+如果WHOIS显示了注册人姓名或公司名：
+
+网站 操作
+https://whois.domaintools.com 输入注册人名称反查
+https://viewdns.info/reversewhois 同样支持注册人反查
+
+🔥 很多公司习惯用同一个联系人注册所有域名，这一步命中率极高。
+
+---
+
+第6步：循环迭代（第4步→第5步→第4步）
+
+这是你给的思路的精髓：
+
+```
+通过注册人查到的域名A → 查域名A的WHOIS拿邮箱B → 
+用邮箱B再反查域名C → 查域名C的WHOIS拿邮箱D → 
+一直迭代到没有新域名为止
+```
+
+实战中，很多公司不同部门注册域名会用不同邮箱，但注册人都是同一个CTO/行政，所以注册人反查比邮箱更稳。
+
+---
+
+第7步：对拿到的所有域名查子域名
+
+把第3步+第4步+第6步收集到的所有域名，挨个用前面学的CrtSearch / DNSDumpster扫子域。
+
+```bash
+# 批量CrtSearch查询（手动版）
+for domain in $(cat domains.txt); do
+    curl -s "https://crt.sh/?q=%.$domain&output=json" | jq '.[].name_value' | sort -u
+done
+```
+
+---
+
+三、不同TLD的处理（你提到的example.com / example.cn）
+
+情况 判断方法 操作
+同一主体注册 WHOIS邮箱/备案号一致 确认为关联资产，列入目标池
+不同主体注册 WHOIS邮箱/备案号不同 谨慎对待，可能是品牌保护被抢注，也可能是无关第三方
+未备案的TLD（如.io） 查WHOIS注册邮箱是否匹配 匹配则关联，不匹配则存疑标记
+
+实战建议：
+
+· 先查 .com 的备案号 → 反查备案拿 .cn .net .com.cn
+· 如果 .io .xyz 等境外TLD查不到备案，就去查WHOIS邮箱，跟主域名的邮箱对一下。
+
+---
+
+四、工具推荐（省时间）
+
+用途 工具/网站
+一站式关联查询 SecurityTrails（付费但最强）
+免费反查 ViewDNS.info
+备案反查 站长工具ICP查询 / Beianx.cn
+批量域名迭代 自己写Python脚本+requests+WHOIS库
+
+---
+
+五、一句话总结
+
+WHOIS拿邮箱 → 反查邮箱拿域名 → 备案号拿所有关联域名 → 迭代循环 → 最后统一扫子域。
+
+这套打完，能从1个目标域名，扩展出5~20个关联域名，属于信息收集中性价比最高的环节。
+
+---
+
+下一步你想让我整理：
+
+· A. 完整信息收集流程图（把前面所有内容串成一张图）
+· B. 实战靶场演练（拿一个真实合法域名完整走一遍）
+· C. 绕过CDN找真实IP的方法
+
+你选，我接着写。
